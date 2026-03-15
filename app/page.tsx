@@ -1,65 +1,142 @@
-import Image from "next/image";
+import { createClient } from '@/utils/supabase/server'
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
 
-export default function Home() {
+export default async function DashboardPage() {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/signin')
+
+  const { data: words } = await supabase
+    .from('vocabulary')
+    .select('*, examples(*)')
+
+  const total = words?.length ?? 0
+  const learned = words?.filter(w => w.learned).length ?? 0
+  const unlearned = words?.filter(w => !w.learned).length ?? 0
+  const withImages = words?.filter(w => w.image_url).length ?? 0
+  const totalReviews = words?.reduce((sum, w) => sum + (w.times_reviewed ?? 0), 0) ?? 0
+  const totalExamples = words?.reduce((sum, w) => sum + (w.examples?.length ?? 0), 0) ?? 0
+  const progressPercent = total > 0 ? Math.round((learned / total) * 100) : 0
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div style={{ maxWidth: 700, margin: '0 auto', padding: 24 }}>
+
+      <h1>🇮🇹 Italian Study Dashboard</h1>
+      <p style={{ color: '#666' }}>Welcome back, {user.email}</p>
+
+      {/* progress bar */}
+      <div style={{ marginTop: 24, marginBottom: 32 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span>Overall Progress</span>
+          <span>{progressPercent}%</span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div style={{ backgroundColor: '#e5e7eb', borderRadius: 999, height: 12 }}>
+          <div style={{
+            backgroundColor: '#22c55e',
+            borderRadius: 999,
+            height: 12,
+            width: `${progressPercent}%`,
+            transition: 'width 0.3s'
+          }} />
         </div>
-      </main>
+        <p style={{ color: '#666', fontSize: 14, marginTop: 8 }}>
+          {learned} of {total} words learned
+        </p>
+      </div>
+
+      {/* stats grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 32 }}>
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, textAlign: 'center' }}>
+          <p style={{ fontSize: 32, margin: 0 }}>📚</p>
+          <p style={{ fontSize: 28, fontWeight: 'bold', margin: '8px 0 4px' }}>{total}</p>
+          <p style={{ color: '#666', margin: 0 }}>Total Words</p>
+        </div>
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, textAlign: 'center' }}>
+          <p style={{ fontSize: 32, margin: 0 }}>✅</p>
+          <p style={{ fontSize: 28, fontWeight: 'bold', margin: '8px 0 4px' }}>{learned}</p>
+          <p style={{ color: '#666', margin: 0 }}>Learned</p>
+        </div>
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, textAlign: 'center' }}>
+          <p style={{ fontSize: 32, margin: 0 }}>⏳</p>
+          <p style={{ fontSize: 28, fontWeight: 'bold', margin: '8px 0 4px' }}>{unlearned}</p>
+          <p style={{ color: '#666', margin: 0 }}>To Learn</p>
+        </div>
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, textAlign: 'center' }}>
+          <p style={{ fontSize: 32, margin: 0 }}>🔄</p>
+          <p style={{ fontSize: 28, fontWeight: 'bold', margin: '8px 0 4px' }}>{totalReviews}</p>
+          <p style={{ color: '#666', margin: 0 }}>Total Reviews</p>
+        </div>
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, textAlign: 'center' }}>
+          <p style={{ fontSize: 32, margin: 0 }}>💬</p>
+          <p style={{ fontSize: 28, fontWeight: 'bold', margin: '8px 0 4px' }}>{totalExamples}</p>
+          <p style={{ color: '#666', margin: 0 }}>Examples</p>
+        </div>
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, textAlign: 'center' }}>
+          <p style={{ fontSize: 32, margin: 0 }}>🖼️</p>
+          <p style={{ fontSize: 28, fontWeight: 'bold', margin: '8px 0 4px' }}>{withImages}</p>
+          <p style={{ color: '#666', margin: 0 }}>With Images</p>
+        </div>
+      </div>
+
+      {/* quick actions */}
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        <Link href="/flashcards" style={{
+          padding: '12px 24px',
+          backgroundColor: '#2563eb',
+          color: '#fff',
+          borderRadius: 8,
+          textDecoration: 'none'
+        }}>
+          🃏 Study Flashcards
+        </Link>
+        <Link href="/vocabulary/new" style={{
+          padding: '12px 24px',
+          backgroundColor: '#22c55e',
+          color: '#fff',
+          borderRadius: 8,
+          textDecoration: 'none'
+        }}>
+          + Add Word
+        </Link>
+        <Link href="/vocabulary" style={{
+          padding: '12px 24px',
+          border: '1px solid #e5e7eb',
+          borderRadius: 8,
+          textDecoration: 'none'
+        }}>
+          📖 View All Words
+        </Link>
+      </div>
+
+      {/* recently added */}
+      {words && words.length > 0 && (
+        <div style={{ marginTop: 32 }}>
+          <h2>Recently Added</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {words.slice(0, 5).map(word => (
+              <Link
+                key={word.id}
+                href={`/vocabulary/${word.id}`}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  padding: 12,
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 8,
+                  textDecoration: 'none',
+                  color: 'inherit'
+                }}
+              >
+                <span>{word.italian} — {word.english}</span>
+                <span>{word.learned ? '✅' : '⏳'}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
-  );
+  )
 }

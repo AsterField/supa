@@ -17,18 +17,12 @@ export default function WorkLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="min-h-screen bg-[#f7f6f3]">
 
-      {/* ── Top nav ───────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-[#f7f6f3]/90 backdrop-blur-md border-b border-stone-200/60">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="flex items-center gap-8 h-14">
+        <div className="max-w-6xl flex justify-center mx-auto">
+          <div className="flex  gap-2 w-full h-14">
 
-            {/* Logo / section title */}
-            <span className="text-sm font-semibold tracking-[0.15em] uppercase text-stone-400 select-none mr-4">
-              Work
-            </span>
 
             {/* Nav items */}
-            <nav className="flex items-center gap-1">
+            <nav className="flex w-full justify-around">
               {NAV_ITEMS.map(item => {
                 const isActive = pathname === item.href
                 return (
@@ -52,10 +46,9 @@ export default function WorkLayout({ children }: { children: React.ReactNode }) 
 
           </div>
         </div>
-      </header>
 
       {/* ── Page content ─────────────────────────────────────────────── */}
-      <main className="max-w-6xl mx-auto px-6 py-10">
+      <main className="w-full mx-auto px-6">
         {children}
       </main>
 

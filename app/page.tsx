@@ -21,7 +21,7 @@ export default async function DashboardPage() {
   const progressPercent = total > 0 ? Math.round((learned / total) * 100) : 0
 
   return (
-    <div style={{ maxWidth: 700, margin: '0 auto', padding: 24 }}>
+ <div className={` mx-auto p-6 max-w-2xl`}>
 
       <h1>🇮🇹 Italian Study Dashboard</h1>
       <p style={{ color: '#666' }}>Welcome back, {user.email}</p>

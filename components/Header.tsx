@@ -8,21 +8,28 @@ export default function Header() {
     const supabase = createClient()
     const router = useRouter()
     const [email, setEmail] = useState<string | null>(null)
+    const [isScrolled, setIsScrolled] = useState(false)
 
     useEffect(() => {
-        // get current session
         supabase.auth.getUser().then(({ data: { user } }) => {
             setEmail(user?.email ?? null)
         })
 
-        // listen for auth changes — fires on sign in and sign out
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             setEmail(session?.user?.email ?? null)
             router.refresh()
         })
 
-        return () => subscription.unsubscribe()
-    }, [])
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 20)
+        }
+
+        window.addEventListener('scroll', handleScroll)
+        return () => {
+            subscription.unsubscribe()
+            window.removeEventListener('scroll', handleScroll)
+        }
+    }, [router, supabase.auth])
 
     const handleSignOut = async () => {
         await supabase.auth.signOut()
@@ -30,56 +37,53 @@ export default function Header() {
     }
 
     return (
-        <header style={{
-            borderBottom: '1px solid #e5e7eb',
-            padding: '12px 24px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-        }}>
-            {/* logo */}
-            <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-                <strong>🇮🇹 Italian Study</strong>
+        <header 
+            className={`
+                fixed top-0 left-0 right-0 z-[1000] flex items-center justify-between
+                bg-[#0f172a] text-[#f8fafc] border-b border-[#1e293b]
+                transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
+                ${isScrolled ? 'py-2.5 px-8 shadow-lg' : 'py-5 px-8 shadow-none'}
+            `}
+        >
+            {/* Logo */}
+            <Link href="/" className="no-underline text-white">
+                <strong className="text-xl tracking-tight">
+                    🇮🇹 Italian Study
+                </strong>
             </Link>
 
-            {/* navigation */}
+            {/* Navigation */}
             {email && (
-                <nav style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-                    <Link href="/">Dashboard</Link>
-                    <Link href="/vocabulary">Vocabulary</Link>
-                    <Link href="/flashcards">Flashcards</Link>
-                    <Link href="/notes">Notes</Link>   {/* ✅ add this */}
+                <nav className="flex items-center gap-8">
+                    <Link href="/" className="text-slate-300 no-underline text-[1.2rem] font-medium transition-colors hover:text-white">Dashboard</Link>
+                    <Link href="/vocabulary" className="text-slate-300 no-underline text-[1.2rem] font-medium transition-colors hover:text-white">Vocabulary</Link>
+                    <Link href="/flashcards" className="text-slate-300 no-underline text-[1.2rem] font-medium transition-colors hover:text-white">Flashcards</Link>
+                    <Link href="/notes" className="text-slate-300 no-underline text-[1.2rem] font-medium transition-colors hover:text-white">Notes</Link>
+                    <Link href="/work" className="text-slate-300 no-underline text-[1.2rem] font-medium transition-colors hover:text-white">Work</Link>
                 </nav>
             )}
 
-            {/* auth */}
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            {/* Auth Section */}
+            <div className="flex items-center gap-5">
                 {email ? (
                     <>
-                        <span style={{ color: '#666', fontSize: 14 }}>{email}</span>
+                        <span className="text-slate-400 text-sm">{email}</span>
                         <button
                             onClick={handleSignOut}
-                            style={{
-                                padding: '8px 16px',
-                                border: '1px solid #e5e7eb',
-                                borderRadius: 8,
-                                cursor: 'pointer',
-                                backgroundColor: '#fff'
-                            }}
+                            className="px-4 py-2 border border-slate-700 rounded-md cursor-pointer bg-transparent text-[#f8fafc] text-sm font-medium hover:bg-slate-800 transition-colors"
                         >
                             Sign Out
                         </button>
                     </>
                 ) : (
                     <>
-                        <Link href="/signin">Sign In</Link>
-                        <Link href="/signup" style={{
-                            padding: '8px 16px',
-                            backgroundColor: '#2563eb',
-                            color: '#fff',
-                            borderRadius: 8,
-                            textDecoration: 'none'
-                        }}>
+                        <Link href="/signin" className="text-[#f8fafc] no-underline text-sm font-medium hover:text-white transition-colors">
+                            Sign In
+                        </Link>
+                        <Link 
+                            href="/signup" 
+                            className="px-4.5 py-2 bg-blue-600 text-white rounded-md no-underline font-semibold text-sm hover:bg-blue-500 transition-colors shadow-sm"
+                        >
                             Sign Up
                         </Link>
                     </>

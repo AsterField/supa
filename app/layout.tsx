@@ -11,10 +11,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${nunito.className} mx-auto text-xl `} >
-        <Header  />
-<main 
-  className="mt-20 min-h-screen bg-[#f7f6f3]"
->          {children}
+        <Header />
+        <main
+          className="mt-16 min-h-screen bg-[#f7f6f3]"
+        >          {children}
         </main>
       </body>
     </html>

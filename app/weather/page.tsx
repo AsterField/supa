@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-const OPENWEATHER_API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY!
-
 interface Weather {
   name: string;
   coord: { lat: number; lon: number };
@@ -45,16 +43,10 @@ interface ForecastDay {
 }
 
 interface AirQuality {
-  aqi: number; // 1–5
+  aqi: number;
   components: {
-    co: number;
-    no: number;
-    no2: number;
-    o3: number;
-    so2: number;
-    pm2_5: number;
-    pm10: number;
-    nh3: number;
+    co: number; no: number; no2: number; o3: number;
+    so2: number; pm2_5: number; pm10: number; nh3: number;
   };
 }
 
@@ -66,7 +58,6 @@ const AQI_LABELS: Record<number, { label: string; color: string; bg: string; bar
   5: { label: "Very Poor", color: "text-purple-300",  bg: "bg-purple-500/20 border-purple-500/30",  bar: "bg-purple-400" },
 };
 
-// WHO guideline thresholds (µg/m³) — [good, fair, moderate, poor] boundaries
 const POLLUTANT_THRESHOLDS: Record<string, { levels: number[]; danger: string }> = {
   pm2_5: { levels: [5,   15,  25,  50],    danger: "Most dangerous — enters bloodstream" },
   pm10:  { levels: [15,  45,  75,  150],   danger: "Causes respiratory inflammation" },
@@ -78,7 +69,7 @@ const POLLUTANT_THRESHOLDS: Record<string, { levels: number[]; danger: string }>
   no:    { levels: [5,   25,  50,  100],   danger: "Precursor to NO2 and ozone" },
 };
 
-function getPollutantLevel(key: string, value: number): { color: string; bg: string; label: string; danger: string } {
+function getPollutantLevel(key: string, value: number) {
   const t = POLLUTANT_THRESHOLDS[key];
   if (!t) return { color: "text-white/60", bg: "bg-white/10", label: "—", danger: "" };
   const [g, f, m, p] = t.levels;
@@ -90,21 +81,23 @@ function getPollutantLevel(key: string, value: number): { color: string; bg: str
 }
 
 const WEATHER_BACKGROUNDS: Record<string, string> = {
-  Clear:        "from-[#0f2027] via-[#203a43] to-[#2c5364]",
-  Clouds:       "from-[#141e30] via-[#243b55] to-[#374a5e]",
-  Rain:         "from-[#0d0d0d] via-[#1a1a2e] to-[#16213e]",
-  Drizzle:      "from-[#0d0d0d] via-[#1a1a2e] to-[#16213e]",
+  Clear: "from-[#0f2027] via-[#203a43] to-[#2c5364]",
+  Clouds: "from-[#141e30] via-[#243b55] to-[#374a5e]",
+  Rain: "from-[#0d0d0d] via-[#1a1a2e] to-[#16213e]",
+  Drizzle: "from-[#0d0d0d] via-[#1a1a2e] to-[#16213e]",
   Thunderstorm: "from-[#0f0c29] via-[#302b63] to-[#24243e]",
-  Snow:         "from-[#1a1a2e] via-[#2d3561] to-[#4a5472]",
-  Mist:         "from-[#232526] via-[#414345] to-[#525c65]",
-  Fog:          "from-[#232526] via-[#414345] to-[#525c65]",
-  Haze:         "from-[#232526] via-[#414345] to-[#525c65]",
+  Snow: "from-[#1a1a2e] via-[#2d3561] to-[#4a5472]",
+  Mist: "from-[#232526] via-[#414345] to-[#525c65]",
+  Fog: "from-[#232526] via-[#414345] to-[#525c65]",
+  Haze: "from-[#232526] via-[#414345] to-[#525c65]",
 };
 
 const WEATHER_EMOJI: Record<string, string> = {
   Clear: "☀️", Clouds: "☁️", Rain: "🌧️", Drizzle: "🌦️",
   Thunderstorm: "⛈️", Snow: "❄️", Mist: "🌫️", Fog: "🌫️", Haze: "🌫️",
 };
+
+const PRESET_CITIES = ["Mantova", "Kyiv", "Kelmentsi", "Paris", "Rome", "Verona", "Manerba del Garda"];
 
 function formatTime(unix: number) {
   return new Date(unix * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -122,39 +115,44 @@ function groupForecastByDay(list: ForecastItem[]): ForecastDay[] {
     if (!days[key]) days[key] = [];
     days[key].push(item);
   });
-  return Object.entries(days)
-    .slice(0, 5)
-    .map(([key, items]) => {
-      const temps = items.map((i) => i.main.temp);
-      const midday = items.find((i) => new Date(i.dt * 1000).getHours() >= 12) ?? items[Math.floor(items.length / 2)];
-      const label = new Date(key + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-      return {
-        date: key, label,
-        icon: midday.weather[0].icon,
-        condition: midday.weather[0].main,
-        description: midday.weather[0].description,
-        temp_min: Math.round(Math.min(...temps)),
-        temp_max: Math.round(Math.max(...temps)),
-        humidity: Math.round(items.reduce((s, i) => s + i.main.humidity, 0) / items.length),
-        wind: Math.round(items.reduce((s, i) => s + i.wind.speed, 0) / items.length),
-        pop: Math.round(Math.max(...items.map((i) => i.pop)) * 100),
-      };
-    });
+  return Object.entries(days).slice(0, 5).map(([key, items]) => {
+    const temps = items.map((i) => i.main.temp);
+    const midday = items.find((i) => new Date(i.dt * 1000).getHours() >= 12) ?? items[Math.floor(items.length / 2)];
+    const label = new Date(key + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    return {
+      date: key, label,
+      icon: midday.weather[0].icon,
+      condition: midday.weather[0].main,
+      description: midday.weather[0].description,
+      temp_min: Math.round(Math.min(...temps)),
+      temp_max: Math.round(Math.max(...temps)),
+      humidity: Math.round(items.reduce((s, i) => s + i.main.humidity, 0) / items.length),
+      wind: Math.round(items.reduce((s, i) => s + i.wind.speed, 0) / items.length),
+      pop: Math.round(Math.max(...items.map((i) => i.pop)) * 100),
+    };
+  });
+}
+
+// ── API helpers — all calls go through /api/weather ──────────────────────────
+async function apiFetch(params: Record<string, string>) {
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(`/api/weather?${qs}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+  return data;
 }
 
 export default function OpenWeather() {
-  const [weather, setWeather] = useState<Weather | null>(null);
-  const [forecast, setForecast] = useState<ForecastDay[]>([]);
+  const [weather, setWeather]       = useState<Weather | null>(null);
+  const [forecast, setForecast]     = useState<ForecastDay[]>([]);
   const [airQuality, setAirQuality] = useState<AirQuality | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [city, setCity] = useState("Mantova");
-  const [input, setInput] = useState("");
-
-  const PRESET_CITIES = ["Mantova", "Kyiv", "Kelmentsi", "Paris", "Rome", "Verona", "Manerba del Garda"];
-  const [unit, setUnit] = useState<"metric" | "imperial">("metric");
-  const [visible, setVisible] = useState(false);
-  const [selectedDay, setSelectedDay] = useState<number>(0);
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState<string | null>(null);
+  const [city, setCity]             = useState("Mantova");
+  const [input, setInput]           = useState("");
+  const [unit, setUnit]             = useState<"metric" | "imperial">("metric");
+  const [visible, setVisible]       = useState(false);
+  const [selectedDay, setSelectedDay] = useState(0);
 
   const fetchWeather = async (cityName: string, units: "metric" | "imperial") => {
     setLoading(true);
@@ -162,33 +160,22 @@ export default function OpenWeather() {
     setVisible(false);
     setAirQuality(null);
     try {
-      // Step 1: fetch current weather + forecast in parallel
-      const [currentRes, forecastRes] = await Promise.all([
-        fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(cityName)}&appid=${OPENWEATHER_API_KEY}&units=${units}`),
-        fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(cityName)}&appid=${OPENWEATHER_API_KEY}&units=${units}&cnt=40`),
+      const [currentData, forecastData] = await Promise.all([
+        apiFetch({ type: "weather",  city: cityName, units }),
+        apiFetch({ type: "forecast", city: cityName, units }),
       ]);
-
-      if (!currentRes.ok) throw new Error(currentRes.status === 404 ? "City not found" : `API error: ${currentRes.status}`);
-      if (!forecastRes.ok) throw new Error(`Forecast API error: ${forecastRes.status}`);
-
-      const currentData: Weather = await currentRes.json();
-      const forecastData: { list: ForecastItem[] } = await forecastRes.json();
 
       setWeather(currentData);
       setForecast(groupForecastByDay(forecastData.list));
       setSelectedDay(0);
 
-      // Step 2: use lat/lon from current weather to fetch air quality
       const { lat, lon } = currentData.coord;
-      const airRes = await fetch(
-        `https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${OPENWEATHER_API_KEY}`
-      );
-      if (airRes.ok) {
-        const airData = await airRes.json();
+      try {
+        const airData = await apiFetch({ type: "air", lat: String(lat), lon: String(lon) });
         const item = airData.list?.[0];
-        if (item) {
-          setAirQuality({ aqi: item.main.aqi, components: item.components });
-        }
+        if (item) setAirQuality({ aqi: item.main.aqi, components: item.components });
+      } catch {
+        // air quality failure is non-fatal
       }
 
       setTimeout(() => setVisible(true), 50);
@@ -215,13 +202,13 @@ export default function OpenWeather() {
     fetchWeather(city, next);
   };
 
-  const condition = weather?.weather[0]?.main ?? "Clear";
-  const bg = WEATHER_BACKGROUNDS[condition] ?? WEATHER_BACKGROUNDS.Clear;
-  const emoji = WEATHER_EMOJI[condition] ?? "🌡️";
+  const condition  = weather?.weather[0]?.main ?? "Clear";
+  const bg         = WEATHER_BACKGROUNDS[condition] ?? WEATHER_BACKGROUNDS.Clear;
+  const emoji      = WEATHER_EMOJI[condition] ?? "🌡️";
   const unitSymbol = unit === "metric" ? "°C" : "°F";
-  const speedUnit = unit === "metric" ? "m/s" : "mph";
+  const speedUnit  = unit === "metric" ? "m/s" : "mph";
   const activeForecast = forecast[selectedDay];
-  const aqiInfo = airQuality ? AQI_LABELS[airQuality.aqi] : null;
+  const aqiInfo    = airQuality ? AQI_LABELS[airQuality.aqi] : null;
 
   return (
     <main className={`min-h-screen bg-gradient-to-br ${bg} text-white font-sans transition-all duration-700`}>
@@ -230,33 +217,24 @@ export default function OpenWeather() {
         {/* Preset city chips */}
         <div className="flex flex-wrap gap-2">
           {PRESET_CITIES.map((c) => (
-            <button
-              key={c}
-              type="button"
+            <button key={c} type="button"
               onClick={() => { setCity(c); fetchWeather(c, unit); }}
               className={`px-4 py-1.5 rounded-full font-mono text-xs tracking-wide border transition-all cursor-pointer ${
                 city === c
                   ? "bg-white/30 border-white/50 text-white font-bold"
                   : "bg-white/10 border-white/20 text-white/60 hover:bg-white/20 hover:text-white"
               }`}
-            >
-              {c}
-            </button>
+            >{c}</button>
           ))}
         </div>
 
         {/* Search bar */}
         <form onSubmit={handleSearch} className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
+          <input type="text" value={input} onChange={(e) => setInput(e.target.value)}
             placeholder="Search any city…"
             className="flex-1 bg-white/10 backdrop-blur border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 font-mono text-sm focus:outline-none focus:border-white/50 focus:ring-2 focus:ring-white/10 transition-all"
           />
-          <button type="submit" className="bg-white/15 hover:bg-white/25 border border-white/20 rounded-xl px-5 py-3 font-mono text-sm transition-colors">
-            Search
-          </button>
+          <button type="submit" className="bg-white/15 hover:bg-white/25 border border-white/20 rounded-xl px-5 py-3 font-mono text-sm transition-colors">Search</button>
           <button type="button" onClick={toggleUnit} className="bg-white/15 hover:bg-white/25 border border-white/20 rounded-xl px-4 py-3 font-mono text-sm transition-colors">
             {unit === "metric" ? "°F" : "°C"}
           </button>
@@ -275,22 +253,15 @@ export default function OpenWeather() {
           <div className="flex flex-col items-center gap-3 py-16 text-center">
             <span className="text-4xl">⚠️</span>
             <p className="font-mono text-sm text-white/60">{error}</p>
-            <button onClick={() => fetchWeather(city, unit)} className="border border-white/30 text-white/70 font-mono text-xs tracking-widest uppercase px-5 py-2 rounded-lg hover:bg-white/10 transition-colors">
-              Retry
-            </button>
+            <button onClick={() => fetchWeather(city, unit)} className="border border-white/30 text-white/70 font-mono text-xs tracking-widest uppercase px-5 py-2 rounded-lg hover:bg-white/10 transition-colors">Retry</button>
           </div>
         )}
 
         {!loading && !error && weather && (
-          <div
-            style={{
-              opacity: visible ? 1 : 0,
-              transform: visible ? "translateY(0)" : "translateY(20px)",
-              transition: "opacity 0.5s ease, transform 0.5s ease",
-            }}
-            className="flex flex-col gap-4"
-          >
-            {/* Current weather card */}
+          <div style={{ opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(20px)", transition: "opacity 0.5s ease, transform 0.5s ease" }}
+            className="flex flex-col gap-4">
+
+            {/* Current weather */}
             <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-7">
               <div className="flex items-start justify-between mb-1">
                 <div>
@@ -318,28 +289,19 @@ export default function OpenWeather() {
               </div>
             </div>
 
-            {/* Air Quality card */}
+            {/* Air Quality */}
             {airQuality && aqiInfo && (
               <div className={`border rounded-2xl p-5 ${aqiInfo.bg}`}>
                 <div className="flex items-center justify-between mb-4">
                   <p className="font-mono text-[10px] tracking-widest uppercase text-white/40">🌬️ Air Quality Index</p>
-                  <span className={`font-bold text-sm px-3 py-1 rounded-full bg-white/10 ${aqiInfo.color}`}>
-                    {aqiInfo.label}
-                  </span>
+                  <span className={`font-bold text-sm px-3 py-1 rounded-full bg-white/10 ${aqiInfo.color}`}>{aqiInfo.label}</span>
                 </div>
-
-                {/* AQI bar */}
                 <div className="flex items-center gap-3 mb-5">
                   <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ${aqiInfo.bar}`}
-                      style={{ width: `${(airQuality.aqi / 5) * 100}%` }}
-                    />
+                    <div className={`h-full rounded-full transition-all duration-700 ${aqiInfo.bar}`} style={{ width: `${(airQuality.aqi / 5) * 100}%` }} />
                   </div>
                   <span className={`font-black text-xl ${aqiInfo.color}`}>{airQuality.aqi}<span className="text-white/30 font-normal text-xs">/5</span></span>
                 </div>
-
-                {/* Pollutants grid */}
                 <div className="grid grid-cols-2 gap-2">
                   {([
                     { key: "pm2_5", label: "PM2.5", value: airQuality.components.pm2_5, priority: true },
@@ -369,19 +331,14 @@ export default function OpenWeather() {
                           <p className="font-mono text-[9px] text-white/30">µg/m³</p>
                         </div>
                         <div className="h-1 bg-white/10 rounded-full overflow-hidden mb-2">
-                          <div
-                            className={`h-full rounded-full transition-all duration-700 ${
-                              level.label === "Good" ? "bg-emerald-400" :
-                              level.label === "Fair" ? "bg-yellow-400" :
-                              level.label === "Moderate" ? "bg-orange-400" :
-                              level.label === "Poor" ? "bg-red-400" : "bg-purple-400"
-                            }`}
-                            style={{ width: `${barPct}%` }}
-                          />
+                          <div className={`h-full rounded-full transition-all duration-700 ${
+                            level.label === "Good" ? "bg-emerald-400" :
+                            level.label === "Fair" ? "bg-yellow-400" :
+                            level.label === "Moderate" ? "bg-orange-400" :
+                            level.label === "Poor" ? "bg-red-400" : "bg-purple-400"
+                          }`} style={{ width: `${barPct}%` }} />
                         </div>
-                        {threshold && (
-                          <p className="text-[9px] text-white/30 leading-tight">{threshold.danger}</p>
-                        )}
+                        {threshold && <p className="text-[9px] text-white/30 leading-tight">{threshold.danger}</p>}
                       </div>
                     );
                   })}
@@ -389,22 +346,18 @@ export default function OpenWeather() {
               </div>
             )}
 
-            {/* 5-day forecast strip */}
+            {/* 5-day forecast */}
             {forecast.length > 0 && (
               <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4">
                 <p className="font-mono text-[10px] tracking-widest uppercase text-white/40 mb-3 px-1">5-Day Forecast</p>
                 <div className="grid grid-cols-5 gap-2">
                   {forecast.map((day, i) => (
-                    <button
-                      key={day.date}
-                      onClick={() => setSelectedDay(i)}
+                    <button key={day.date} onClick={() => setSelectedDay(i)}
                       className={`flex flex-col items-center gap-1 rounded-xl py-3 px-1 transition-all cursor-pointer ${
                         selectedDay === i ? "bg-white/20 border border-white/30" : "hover:bg-white/10 border border-transparent"
                       }`}
                     >
-                      <p className="font-mono text-[10px] text-white/50 uppercase tracking-wide">
-                        {i === 0 ? "Today" : day.label.split(",")[0]}
-                      </p>
+                      <p className="font-mono text-[10px] text-white/50 uppercase tracking-wide">{i === 0 ? "Today" : day.label.split(",")[0]}</p>
                       <span className="text-2xl">{WEATHER_EMOJI[day.condition] ?? "🌡️"}</span>
                       <p className="text-xs font-semibold">{day.temp_max}{unitSymbol}</p>
                       <p className="text-[10px] text-white/40">{day.temp_min}{unitSymbol}</p>

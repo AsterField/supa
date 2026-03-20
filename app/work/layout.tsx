@@ -48,7 +48,7 @@ export default function WorkLayout({ children }: { children: React.ReactNode }) 
         </div>
 
       {/* ── Page content ─────────────────────────────────────────────── */}
-      <main className="w-full mx-auto px-6">
+      <main className="w-full mx-auto">
         {children}
       </main>
 

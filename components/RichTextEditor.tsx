@@ -17,10 +17,15 @@ export default function RichTextEditor({
     immediatelyRender: false,
     extensions: [
       StarterKit,
-      Placeholder.configure({ placeholder })
+      Placeholder.configure({ placeholder }),
     ],
     content,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
+    editorProps: {
+      attributes: {
+        class: 'prose-editor',
+      },
+    },
   })
 
   useEffect(() => {
@@ -32,74 +37,68 @@ export default function RichTextEditor({
   if (!editor) return null
 
   return (
-    <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
-      {/* toolbar */}
-      <div style={{
-        display: 'flex',
-        gap: 4,
-        padding: 8,
-        borderBottom: '1px solid #e5e7eb',
-        backgroundColor: '#f9fafb',
-        flexWrap: 'wrap'
-      }}>
-        <button
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          style={{ fontWeight: editor.isActive('bold') ? 'bold' : 'normal', padding: '4px 8px', borderRadius: 4, border: '1px solid #e5e7eb', cursor: 'pointer', backgroundColor: editor.isActive('bold') ? '#e5e7eb' : '#fff' }}
-        >B</button>
-        <button
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          style={{ fontStyle: 'italic', padding: '4px 8px', borderRadius: 4, border: '1px solid #e5e7eb', cursor: 'pointer', backgroundColor: editor.isActive('italic') ? '#e5e7eb' : '#fff' }}
-        >I</button>
-        <button
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          style={{ textDecoration: 'line-through', padding: '4px 8px', borderRadius: 4, border: '1px solid #e5e7eb', cursor: 'pointer', backgroundColor: editor.isActive('strike') ? '#e5e7eb' : '#fff' }}
-        >S</button>
-        <div style={{ width: 1, backgroundColor: '#e5e7eb', margin: '0 4px' }} />
-        <button
-          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-          style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #e5e7eb', cursor: 'pointer', backgroundColor: editor.isActive('heading', { level: 1 }) ? '#e5e7eb' : '#fff' }}
-        >H1</button>
-        <button
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #e5e7eb', cursor: 'pointer', backgroundColor: editor.isActive('heading', { level: 2 }) ? '#e5e7eb' : '#fff' }}
-        >H2</button>
-        <button
-          onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-          style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #e5e7eb', cursor: 'pointer', backgroundColor: editor.isActive('heading', { level: 3 }) ? '#e5e7eb' : '#fff' }}
-        >H3</button>
-        <div style={{ width: 1, backgroundColor: '#e5e7eb', margin: '0 4px' }} />
-        <button
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #e5e7eb', cursor: 'pointer', backgroundColor: editor.isActive('bulletList') ? '#e5e7eb' : '#fff' }}
-        >• List</button>
-        <button
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #e5e7eb', cursor: 'pointer', backgroundColor: editor.isActive('orderedList') ? '#e5e7eb' : '#fff' }}
-        >1. List</button>
-        <button
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #e5e7eb', cursor: 'pointer', backgroundColor: editor.isActive('codeBlock') ? '#e5e7eb' : '#fff' }}
-        >Code</button>
-        <button
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #e5e7eb', cursor: 'pointer', backgroundColor: editor.isActive('blockquote') ? '#e5e7eb' : '#fff' }}
-        >❝</button>
-        <div style={{ width: 1, backgroundColor: '#e5e7eb', margin: '0 4px' }} />
-        <button
-          onClick={() => editor.chain().focus().undo().run()}
-          style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #e5e7eb', cursor: 'pointer', backgroundColor: '#fff' }}
-        >↩</button>
-        <button
-          onClick={() => editor.chain().focus().redo().run()}
-          style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #e5e7eb', cursor: 'pointer', backgroundColor: '#fff' }}
-        >↪</button>
-      </div>
-
-      {/* editor */}
-      <EditorContent
-        editor={editor}
-        style={{ padding: 16, minHeight: 200 }}
-      />
-    </div>
+    <>
+      <style>{`
+        .prose-editor {
+          outline: none;
+          min-height: 100%;
+          font-size: 15px;
+          line-height: 1.8;
+          color: #1c1917;
+          font-family: 'Georgia', serif;
+          caret-color: #78716c;
+        }
+        .prose-editor p { margin: 0 0 0.75em; }
+        .prose-editor p:last-child { margin-bottom: 0; }
+        .prose-editor h1 { font-size: 1.6em; font-weight: 700; margin: 1.2em 0 0.4em; color: #0c0a09; letter-spacing: -0.02em; }
+        .prose-editor h2 { font-size: 1.3em; font-weight: 600; margin: 1em 0 0.35em; color: #1c1917; }
+        .prose-editor h3 { font-size: 1.1em; font-weight: 600; margin: 0.9em 0 0.3em; color: #292524; }
+        .prose-editor ul { padding-left: 1.4em; margin: 0.5em 0; }
+        .prose-editor ol { padding-left: 1.4em; margin: 0.5em 0; }
+        .prose-editor li { margin: 0.25em 0; }
+        .prose-editor blockquote {
+          border-left: 3px solid #e7e5e4;
+          padding-left: 1em;
+          margin: 0.75em 0;
+          color: #78716c;
+          font-style: italic;
+        }
+        .prose-editor code {
+          background: #f5f5f4;
+          border-radius: 4px;
+          padding: 1px 5px;
+          font-size: 0.88em;
+          font-family: 'JetBrains Mono', 'Fira Code', monospace;
+          color: #92400e;
+        }
+        .prose-editor pre {
+          background: #1c1917;
+          border-radius: 10px;
+          padding: 16px 18px;
+          margin: 0.75em 0;
+          overflow-x: auto;
+        }
+        .prose-editor pre code {
+          background: none;
+          color: #d6d3d1;
+          padding: 0;
+          font-size: 0.85em;
+        }
+        .prose-editor strong { font-weight: 700; color: #0c0a09; }
+        .prose-editor em { font-style: italic; color: #44403c; }
+        .prose-editor s { text-decoration: line-through; color: #a8a29e; }
+        .prose-editor hr { border: none; border-top: 1px solid #e7e5e4; margin: 1.5em 0; }
+        .prose-editor p.is-editor-empty:first-child::before {
+          content: attr(data-placeholder);
+          float: left;
+          color: #c4b5b0;
+          pointer-events: none;
+          height: 0;
+          font-style: italic;
+          font-family: 'Georgia', serif;
+        }
+      `}</style>
+      <EditorContent editor={editor} style={{ height: '100%' }} />
+    </>
   )
 }

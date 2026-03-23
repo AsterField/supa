@@ -401,11 +401,11 @@ export default function TemplatePage() {
   )
 
   return (
-    <div className="min-h-screen bg-[#f7f6f3]">
+    <div className="flex min-h-screen bg-[#f7f6f3]">
 
       {/* ── DESKTOP layout (lg+) ───────────────────────────────────── */}
       <div className="hidden lg:block w-full py-8 px-4">
-        <div className="grid w-full grid-cols-[80px_80px_1fr_80px_80px] xl:grid-cols-[100px_100px_1fr_100px_100px] gap-3 items-start">
+        <div className="grid w-full grid-cols-[120px_120px_1fr_120px_120px] xl:grid-cols-[160px_160px_1fr_160px_160px] gap-1 items-start">
           <BlockColumn side="left1"  label="Left 1"  onAdd={() => addBlock('left1')}  {...colProps} />
           <BlockColumn side="left2"  label="Left 2"  onAdd={() => addBlock('left2')}  {...colProps} />
           {CenterPanel}

@@ -4,11 +4,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const NAV_ITEMS = [
+  { label: 'Home', href: '/work', icon: '⬡' },
   { label: 'DNS History', href: '/work/dns', icon: '⬡' },
-  { label: 'Projects',  href: '/work/projects',  icon: '◈' },
-  { label: 'Tasks',     href: '/work/tasks',      icon: '◎' },
-  { label: 'Notes',     href: '/work/notes',      icon: '◇' },
-  { label: 'Calendar',  href: '/work/calendar',   icon: '◻' },
+
 ]
 
 export default function WorkLayout({ children }: { children: React.ReactNode }) {
@@ -30,7 +28,7 @@ export default function WorkLayout({ children }: { children: React.ReactNode }) 
                     key={item.href}
                     href={item.href}
                     className={`
-                      relative flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm transition-all duration-150 no-underline
+                      relative flex items-center gap-2 px-4 py-1.5 rounded-lg text-2xl transition-all duration-150 no-underline
                       ${isActive
                         ? 'text-stone-900 font-medium bg-white shadow-sm border border-stone-200/80'
                         : 'text-stone-500 hover:text-stone-800 hover:bg-stone-100'

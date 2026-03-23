@@ -16,15 +16,16 @@ type Note = {
 
 export default function NotesLayout({ initialNotes, userId }: { initialNotes: Note[], userId: string }) {
   const supabase = createClient()
-  const [notes, setNotes] = useState<Note[]>(initialNotes)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [notes, setNotes]               = useState<Note[]>(initialNotes)
+  const [selectedId, setSelectedId]     = useState<string | null>(null)
   const [selectedNote, setSelectedNote] = useState<Note | null>(null)
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
-  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set())
+  const [title, setTitle]               = useState('')
+  const [content, setContent]           = useState('')
+  const [saveStatus, setSaveStatus]     = useState<'saved' | 'saving' | 'unsaved'>('saved')
+  const [expanded, setExpanded]         = useState<Set<string>>(new Set())
+  const [search, setSearch]             = useState('')
+  const [sidebarOpen, setSidebarOpen]   = useState(true)
 
-  // select a note
   const handleSelect = async (id: string) => {
     setSelectedId(id)
     const { data } = await supabase.from('notes').select('*').eq('id', id).single()
@@ -36,294 +37,305 @@ export default function NotesLayout({ initialNotes, userId }: { initialNotes: No
     }
   }
 
-  // autosave with debounce
   const save = useCallback(async (id: string, newTitle: string, newContent: string) => {
     setSaveStatus('saving')
     await supabase
       .from('notes')
       .update({ title: newTitle, content: newContent, updated_at: new Date().toISOString() })
       .eq('id', id)
-
-    // update local state
-    setNotes(prev => prev.map(note => {
-      if (note.id === id) return { ...note, title: newTitle, content: newContent }
-      return {
-        ...note,
-        subnotes: note.subnotes?.map(sub =>
-          sub.id === id ? { ...sub, title: newTitle, content: newContent } : sub
-        )
-      }
-    }))
+    setNotes(prev => prev.map(note => ({
+      ...note,
+      ...(note.id === id ? { title: newTitle, content: newContent } : {}),
+      subnotes: note.subnotes?.map(sub =>
+        sub.id === id ? { ...sub, title: newTitle, content: newContent } : sub
+      )
+    })))
     setSaveStatus('saved')
   }, [])
 
   useEffect(() => {
     if (!selectedId) return
     setSaveStatus('unsaved')
-    const timer = setTimeout(() => save(selectedId, title, content), 1000)
-    return () => clearTimeout(timer)
+    const t = setTimeout(() => save(selectedId, title, content), 1000)
+    return () => clearTimeout(t)
   }, [title, content])
 
-  // create new main note
   const handleNewNote = async () => {
     const { data } = await supabase
       .from('notes')
-      .insert({ user_id: userId, title: 'New Note', content: '', parent_id: null })
-      .select()
-      .single()
-
+      .insert({ user_id: userId, title: 'Untitled', content: '', parent_id: null })
+      .select().single()
     if (data) {
       setNotes(prev => [{ ...data, subnotes: [] }, ...prev])
       handleSelect(data.id)
     }
   }
 
-  // create new subnote
   const handleNewSubnote = async (parentId: string) => {
     const { data } = await supabase
       .from('notes')
-      .insert({ user_id: userId, title: 'New Subnote', content: '', parent_id: parentId })
-      .select()
-      .single()
-
+      .insert({ user_id: userId, title: 'Untitled', content: '', parent_id: parentId })
+      .select().single()
     if (data) {
-      setNotes(prev => prev.map(note =>
-        note.id === parentId
-          ? { ...note, subnotes: [...(note.subnotes ?? []), data] }
-          : note
+      setNotes(prev => prev.map(n =>
+        n.id === parentId ? { ...n, subnotes: [...(n.subnotes ?? []), data] } : n
       ))
-      setExpandedNotes(prev => new Set(prev).add(parentId))
+      setExpanded(prev => new Set(prev).add(parentId))
       handleSelect(data.id)
     }
   }
 
-  // delete note
   const handleDelete = async (id: string, parentId?: string) => {
-    const confirmed = confirm('Delete this note?')
-    if (!confirmed) return
-
+    if (!confirm('Delete this note?')) return
     await supabase.from('notes').delete().eq('id', id)
-
     if (parentId) {
-      setNotes(prev => prev.map(note =>
-        note.id === parentId
-          ? { ...note, subnotes: note.subnotes?.filter(sub => sub.id !== id) }
-          : note
+      setNotes(prev => prev.map(n =>
+        n.id === parentId ? { ...n, subnotes: n.subnotes?.filter(s => s.id !== id) } : n
       ))
     } else {
-      setNotes(prev => prev.filter(note => note.id !== id))
+      setNotes(prev => prev.filter(n => n.id !== id))
     }
-
-    if (selectedId === id) {
-      setSelectedId(null)
-      setSelectedNote(null)
-      setTitle('')
-      setContent('')
-    }
+    if (selectedId === id) { setSelectedId(null); setSelectedNote(null); setTitle(''); setContent('') }
   }
 
-  // toggle pin
   const handleTogglePin = async (id: string, pinned: boolean) => {
     await supabase.from('notes').update({ pinned: !pinned }).eq('id', id)
     setNotes(prev => prev
-      .map(note => note.id === id ? { ...note, pinned: !pinned } : note)
+      .map(n => n.id === id ? { ...n, pinned: !pinned } : n)
       .sort((a, b) => Number(b.pinned) - Number(a.pinned))
     )
   }
 
-  // toggle expand subnotes
-  const toggleExpand = (id: string) => {
-    setExpandedNotes(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
-  }
+  const toggleExpand = (id: string) => setExpanded(prev => {
+    const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next
+  })
+
+  const filtered = search.trim()
+    ? notes.filter(n =>
+        n.title.toLowerCase().includes(search.toLowerCase()) ||
+        n.subnotes?.some(s => s.title.toLowerCase().includes(search.toLowerCase()))
+      )
+    : notes
+
+  const wordCount = content.replace(/<[^>]*>/g, '').trim().split(/\s+/).filter(Boolean).length
+  const charCount = content.replace(/<[^>]*>/g, '').length
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 57px)', overflow: 'hidden' }}>
+    <div className="flex bg-[#fafaf9]" style={{ height: 'calc(100vh - 57px)', overflow: 'hidden' }}>
 
-      {/* LEFT PANEL — notes list */}
-      <div style={{
-        width: 280,
-        borderRight: '1px solid #e5e7eb',
-        display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: '#f9fafb',
-        flexShrink: 0
-      }}>
-        <div style={{ padding: '16px 16px 8px', borderBottom: '1px solid #e5e7eb' }}>
-          <h2 style={{ margin: 0, fontSize: 16 }}>📓 Notes</h2>
+      {/* ── Sidebar ───────────────────────────────────────────────── */}
+      <aside className={`flex flex-col bg-[#f5f4f1] border-r border-stone-200 transition-all duration-300 shrink-0 ${sidebarOpen ? 'w-80' : 'w-0 overflow-hidden'}`}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-4 border-b border-stone-200">
+          <span className="text-sm font-semibold text-stone-700 tracking-wide">Notes</span>
+          <button
+            onClick={handleNewNote}
+            className="w-7 h-7 flex items-center justify-center rounded-lg bg-stone-800 text-white text-lg leading-none hover:bg-stone-700 transition-colors cursor-pointer"
+            title="New note"
+          >+</button>
         </div>
 
-        {/* notes list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
-          {notes.length === 0 && (
-            <p style={{ color: '#9ca3af', fontSize: 14, padding: 8 }}>No notes yet.</p>
+        {/* Search */}
+        <div className="px-3 py-2.5 border-b border-stone-200">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search notes…"
+            className="w-full bg-white border border-stone-200 rounded-lg px-3 py-1.5 text-xs text-stone-600 placeholder-stone-300 focus:outline-none focus:ring-1 focus:ring-stone-300 transition-all"
+          />
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto py-2 px-2">
+          {filtered.length === 0 && (
+            <p className="text-stone-400 text-xs px-3 py-4 text-center">No notes found.</p>
           )}
-          {notes.map(note => (
+          {filtered.map(note => (
             <div key={note.id}>
-              {/* main note row */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                borderRadius: 8,
-                backgroundColor: selectedId === note.id ? '#e0e7ff' : 'transparent',
-                padding: '2px 4px',
-                marginBottom: 2
-              }}>
-                {/* expand toggle */}
+              {/* Main note */}
+              <div className={`group flex items-center gap-1 rounded-xl px-2 py-2.5 mb-1 cursor-pointer transition-all ${
+                selectedId === note.id ? 'bg-white shadow-sm border border-stone-200' : 'hover:bg-stone-100'
+              }`}>
+                {/* Expand chevron */}
                 <button
                   onClick={() => toggleExpand(note.id)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 2px', color: '#6b7280', fontSize: 12, flexShrink: 0 }}
+                  className="w-4 h-4 flex items-center justify-center text-stone-300 hover:text-stone-500 shrink-0 transition-colors cursor-pointer"
                 >
                   {note.subnotes && note.subnotes.length > 0
-                    ? expandedNotes.has(note.id) ? '▼' : '▶'
-                    : '·'}
+                    ? <span className="text-[10px]">{expanded.has(note.id) ? '▾' : '▸'}</span>
+                    : <span className="text-[8px]">•</span>}
                 </button>
 
-                {/* note title */}
+                {/* Title */}
                 <button
                   onClick={() => handleSelect(note.id)}
-                  style={{
-                    flex: 1,
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    padding: '6px 4px',
-                    fontSize: 14,
-                    fontWeight: 500,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}
+                  className="flex-1 text-left min-w-0"
                 >
-                  {note.pinned ? '📌 ' : ''}{note.title}
+                  <p className={`text-base truncate ${selectedId === note.id ? 'text-stone-900 font-medium' : 'text-stone-700'}`}>
+                    {note.pinned && <span className="mr-1 text-[10px]">📌</span>}
+                    {note.title || 'Untitled'}
+                  </p>
+                  <p className="text-xs text-stone-400 mt-0.5">{formatDate(note.updated_at)}</p>
                 </button>
 
-                {/* actions */}
-                <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
-                  <button
-                    onClick={() => handleNewSubnote(note.id)}
-                    title="Add subnote"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#6b7280', fontSize: 14 }}
-                  >+</button>
-                  <button
-                    onClick={() => handleTogglePin(note.id, note.pinned)}
-                    title={note.pinned ? 'Unpin' : 'Pin'}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#6b7280', fontSize: 12 }}
-                  >📌</button>
-                  <button
-                    onClick={() => handleDelete(note.id)}
-                    title="Delete"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#ef4444', fontSize: 12 }}
-                  >🗑</button>
+                {/* Actions — show on hover */}
+                <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
+                  <button onClick={() => handleNewSubnote(note.id)} title="Add subnote"
+                    className="w-6 h-6 flex items-center justify-center rounded text-stone-400 hover:text-stone-700 hover:bg-stone-200 transition-colors cursor-pointer text-sm">
+                    +
+                  </button>
+                  <button onClick={() => handleTogglePin(note.id, note.pinned)} title={note.pinned ? 'Unpin' : 'Pin'}
+                    className="w-6 h-6 flex items-center justify-center rounded text-stone-400 hover:text-stone-700 hover:bg-stone-200 transition-colors cursor-pointer text-[11px]">
+                    {note.pinned ? '📌' : '·'}
+                  </button>
+                  <button onClick={() => handleDelete(note.id)} title="Delete"
+                    className="w-6 h-6 flex items-center justify-center rounded text-stone-300 hover:text-red-400 hover:bg-red-50 transition-colors cursor-pointer text-xs">
+                    ×
+                  </button>
                 </div>
               </div>
 
-              {/* subnotes */}
-              {expandedNotes.has(note.id) && note.subnotes?.map(sub => (
-                <div key={sub.id} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  borderRadius: 8,
-                  backgroundColor: selectedId === sub.id ? '#e0e7ff' : 'transparent',
-                  padding: '2px 4px',
-                  marginLeft: 20,
-                  marginBottom: 2
-                }}>
-                  <span style={{ color: '#9ca3af', fontSize: 12, padding: '4px 6px' }}>└</span>
-                  <button
-                    onClick={() => handleSelect(sub.id)}
-                    style={{
-                      flex: 1,
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      padding: '6px 4px',
-                      fontSize: 13,
-                      color: '#374151',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    {sub.title}
+              {/* Subnotes */}
+              {expanded.has(note.id) && note.subnotes?.map(sub => (
+                <div key={sub.id} className={`group flex items-center gap-1 rounded-xl px-2 py-1.5 mb-0.5 ml-5 cursor-pointer transition-all ${
+                  selectedId === sub.id ? 'bg-white shadow-sm border border-stone-200' : 'hover:bg-stone-100'
+                }`}>
+                  <span className="text-stone-300 text-[10px] mr-1">└</span>
+                  <button onClick={() => handleSelect(sub.id)} className="flex-1 text-left min-w-0">
+                    <p className={`text-sm truncate ${selectedId === sub.id ? 'text-stone-900 font-medium' : 'text-stone-600'}`}>
+                      {sub.title || 'Untitled'}
+                    </p>
                   </button>
-                  <button
-                    onClick={() => handleDelete(sub.id, note.id)}
-                    title="Delete"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#ef4444', fontSize: 12 }}
-                  >🗑</button>
+                  <button onClick={() => handleDelete(sub.id, note.id)}
+                    className="hidden group-hover:flex w-6 h-6 items-center justify-center rounded text-stone-300 hover:text-red-400 hover:bg-red-50 transition-colors cursor-pointer text-xs shrink-0">
+                    ×
+                  </button>
                 </div>
               ))}
             </div>
           ))}
         </div>
 
-        {/* new note button */}
-        <div style={{ padding: 12, borderTop: '1px solid #e5e7eb' }}>
-          <button
-            onClick={handleNewNote}
-            style={{
-              width: '100%',
-              padding: '8px 12px',
-              backgroundColor: '#2563eb',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontSize: 14
-            }}
-          >
-            + New Note
-          </button>
+        {/* Footer stats */}
+        <div className="px-4 py-2.5 border-t border-stone-200">
+          <p className="text-[10px] text-stone-400">{notes.length} note{notes.length !== 1 ? 's' : ''}</p>
         </div>
-      </div>
+      </aside>
 
-      {/* RIGHT PANEL — note content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* ── Editor ───────────────────────────────────────────────── */}
+      <main className="flex-1 flex flex-col overflow-hidden">
         {selectedNote ? (
           <>
-            {/* header */}
-            <div style={{ padding: '12px 24px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <input
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                style={{ fontSize: 22, fontWeight: 'bold', border: 'none', outline: 'none', flex: 1, backgroundColor: 'transparent' }}
-                placeholder="Note title"
-              />
-              <span style={{ fontSize: 13, color: saveStatus === 'saved' ? '#22c55e' : saveStatus === 'saving' ? '#f59e0b' : '#9ca3af', marginLeft: 16 }}>
-                {saveStatus === 'saved' ? '✓ Saved' : saveStatus === 'saving' ? 'Saving...' : 'Unsaved'}
+            {/* Toolbar */}
+            <div className="flex items-center gap-3 px-8 py-3 border-b border-stone-100 bg-white shrink-0">
+              {/* Sidebar toggle */}
+              <button
+                onClick={() => setSidebarOpen(p => !p)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer text-sm shrink-0"
+                title="Toggle sidebar"
+              >
+                {sidebarOpen ? '◂' : '▸'}
+              </button>
+
+              <div className="w-px h-4 bg-stone-200" />
+
+              {/* Save status */}
+              <div className="flex items-center gap-1.5">
+                <div className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                  saveStatus === 'saved' ? 'bg-emerald-400' :
+                  saveStatus === 'saving' ? 'bg-amber-400' : 'bg-stone-300'
+                }`} />
+                <span className="text-[11px] text-stone-400 font-mono">
+                  {saveStatus === 'saved' ? 'Saved' : saveStatus === 'saving' ? 'Saving…' : 'Unsaved'}
+                </span>
+              </div>
+
+              <div className="flex-1" />
+
+              {/* Word / char count */}
+              <span className="text-[11px] text-stone-300 font-mono hidden sm:block">
+                {wordCount} words · {charCount} chars
               </span>
+
+              <div className="w-px h-4 bg-stone-200" />
+
+              {/* Pin */}
+              <button
+                onClick={() => handleTogglePin(selectedNote.id, selectedNote.pinned)}
+                className={`text-xs px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  selectedNote.pinned
+                    ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                    : 'text-stone-400 hover:text-stone-600 hover:bg-stone-50'
+                }`}
+              >
+                {selectedNote.pinned ? '📌 Pinned' : '📌'}
+              </button>
+
+              {/* Delete */}
+              <button
+                onClick={() => handleDelete(selectedNote.id, selectedNote.parent_id ?? undefined)}
+                className="text-xs text-stone-300 hover:text-red-400 px-2 py-1 rounded-lg hover:bg-red-50 transition-all cursor-pointer"
+              >
+                Delete
+              </button>
             </div>
 
-            {/* editor */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
-              <RichTextEditor
-                content={content}
-                onChange={setContent}
-                placeholder="Start writing..."
-              />
+            {/* Content area */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="w-full mx-auto px-8 py-10">
+
+                {/* Title */}
+                <input
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  placeholder="Untitled"
+                  className="w-full text-3xl font-bold text-stone-900 bg-transparent border-none outline-none placeholder-stone-200 mb-6 tracking-tight leading-tight"
+                  style={{ fontFamily: 'Georgia, serif' }}
+                />
+
+                {/* Divider */}
+                <div className="h-px bg-stone-100 mb-8" />
+
+                {/* Editor — visible bordered area */}
+                <div className="border border-stone-200 rounded-2xl bg-white shadow-sm overflow-hidden focus-within:border-stone-400 focus-within:shadow-md transition-all">
+                  <div className="px-6 py-5 min-h-[400px]">
+                    <RichTextEditor
+                      content={content}
+                      onChange={setContent}
+                      placeholder="Start writing…"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </>
         ) : (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>
-            <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: 48 }}>📓</p>
-              <p>Select a note to start editing</p>
+          /* Empty state */
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <button
+              onClick={() => setSidebarOpen(p => !p)}
+              className="absolute top-20 left-4 w-7 h-7 flex items-center justify-center rounded-lg text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition-colors cursor-pointer text-sm"
+            >
+              {sidebarOpen ? '◂' : '▸'}
+            </button>
+            <div className="text-center opacity-40">
+              <p className="text-5xl mb-4">📓</p>
+              <p className="text-sm text-stone-500 mb-4">Select a note or create one</p>
               <button
                 onClick={handleNewNote}
-                style={{ padding: '8px 16px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', marginTop: 8 }}
+                className="px-4 py-2 bg-stone-900 text-white rounded-xl text-sm hover:bg-stone-700 transition-colors cursor-pointer"
               >
-                + Create your first note
+                New note
               </button>
             </div>
           </div>
         )}
-      </div>
+      </main>
     </div>
   )
 }

@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${nunito.className} mx-auto text-xl `} >
         <Header />
         <main
-          className="mt-16 min-h-screen bg-[#f7f6f3]"
+          className="mt-24 min-h-screen bg-[#f7f6f3]"
         >          {children}
         </main>
       </body>

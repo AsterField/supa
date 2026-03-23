@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2, Save, Languages, BookOpen, Link as LinkIcon, AlertCircle } from 'lucide-react'
 
+
 type Example = { italian: string; english: string }
 type Relation = { related_word: string; type: 'synonym' | 'antonym' | 'related' }
 
@@ -176,31 +177,49 @@ export default function NewWordPage() {
           </div>
 
           <div className="space-y-4">
-            {examples.map((ex, i) => (
-              <div key={i} className="group relative grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-start bg-slate-50/50 p-4 rounded-lg border border-slate-100">
-                <input
-                  className={`${inputStyles} bg-white`}
-                  placeholder="Italian sentence"
-                  value={ex.italian}
-                  onChange={e => updateExample(i, 'italian', e.target.value)}
-                />
-                <input
-                  className={`${inputStyles} bg-white`}
-                  placeholder="English translation"
-                  value={ex.english}
-                  onChange={e => updateExample(i, 'english', e.target.value)}
-                />
-                {examples.length > 1 && (
-                  <button 
-                    onClick={() => removeExample(i)}
-                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
+  {examples.map((ex, i) => (
+    <div key={i} className="group relative grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-start bg-slate-50/50 p-4 rounded-lg border border-slate-100">
+      <textarea
+        className={`${inputStyles} bg-white resize-none overflow-hidden min-h-[40px]`}
+        placeholder="Italian sentence"
+        value={ex.italian}
+        rows={1}
+        onChange={e => {
+          updateExample(i, 'italian', e.target.value)
+          e.target.style.height = 'auto'
+          e.target.style.height = e.target.scrollHeight + 'px'
+        }}
+        onFocus={e => {
+          e.target.style.height = 'auto'
+          e.target.style.height = e.target.scrollHeight + 'px'
+        }}
+      />
+      <textarea
+        className={`${inputStyles} bg-white resize-none overflow-hidden min-h-[40px]`}
+        placeholder="English translation"
+        value={ex.english}
+        rows={1}
+        onChange={e => {
+          updateExample(i, 'english', e.target.value)
+          e.target.style.height = 'auto'
+          e.target.style.height = e.target.scrollHeight + 'px'
+        }}
+        onFocus={e => {
+          e.target.style.height = 'auto'
+          e.target.style.height = e.target.scrollHeight + 'px'
+        }}
+      />
+      {examples.length > 1 && (
+        <button
+          onClick={() => removeExample(i)}
+          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+        >
+          <Trash2 size={18} />
+        </button>
+      )}
+    </div>
+  ))}
+</div>
         </section>
 
         {/* Relations Section */}

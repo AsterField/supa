@@ -127,7 +127,7 @@ export default function DNSHistory() {
     + (records.length > 3 ? `\n... and ${records.length - 3} more records. Full report copied separately.\n` : "");
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30 text-slate-800 font-sans">
+    <main className="min-h-screen bg-[#f7f6f3] text-slate-800 font-sans">
       <div className="max-w-3xl mx-auto px-5 py-12">
 
         {/* Header */}

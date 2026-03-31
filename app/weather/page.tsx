@@ -97,7 +97,7 @@ const WEATHER_EMOJI: Record<string, string> = {
   Thunderstorm: "⛈️", Snow: "❄️", Mist: "🌫️", Fog: "🌫️", Haze: "🌫️",
 };
 
-const PRESET_CITIES = ["Mantova", "Kyiv", "Kelmentsi", "Paris", "Rome", "Verona", "Manerba del Garda"];
+const PRESET_CITIES = ["Mantova", "Kyiv", "Kelmentsi", "Paris", "Roma", "Verona", "Manerba del Garda", "Florence"];
 
 function formatTime(unix: number) {
   return new Date(unix * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
